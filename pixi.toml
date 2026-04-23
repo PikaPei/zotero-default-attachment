@@ -1,0 +1,11 @@
+[workspace]
+authors = ["Pei Huang <hphuang@ibms.sinica.edu.tw>"]
+channels = ["conda-forge"]
+name = "zotero-change-main-file"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+nodejs = ">=25.8.2,<25.9"

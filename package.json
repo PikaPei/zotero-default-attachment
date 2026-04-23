@@ -1,0 +1,37 @@
+{
+  "name": "zotero-default-attachment",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Set the default attachment for Zotero items with multiple PDFs",
+  "config": {
+    "addonName": "Default Attachment",
+    "addonID": "default-attachment@zotero-plugin",
+    "addonRef": "defaultattachment",
+    "addonInstance": "DefaultAttachment",
+    "prefsPrefix": "extensions.zotero.defaultattachment"
+  },
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PikaPei/zotero-default-attachment.git"
+  },
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "start": "zotero-plugin serve",
+    "build": "zotero-plugin build",
+    "release": "zotero-plugin release"
+  },
+  "dependencies": {
+    "zotero-plugin-toolkit": "^5.1.0-beta.13"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "zotero-plugin-scaffold": "^0.8.2",
+    "zotero-types": "^4.1.0-beta.4"
+  },
+  "prettier": {
+    "printWidth": 80,
+    "tabWidth": 2,
+    "endOfLine": "lf"
+  }
+}
