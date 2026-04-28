@@ -14,6 +14,7 @@ import {
 import { config } from "../../package.json";
 
 const MENU_ID = `${config.addonRef}-set-default-menuitem`;
+const SEP_ID = `${config.addonRef}-separator`;
 
 // Track per-window popup listeners so we can remove them on cleanup
 const popupListeners = new WeakMap<Window, () => void>();
@@ -32,7 +33,11 @@ export function registerContextMenu(win: Window) {
     return;
   }
 
-  // Create the menu item
+  // Create a separator and the menu item
+  const separator = doc.createXULElement("menuseparator");
+  separator.id = SEP_ID;
+  itemMenu.appendChild(separator);
+
   const menuitem = doc.createXULElement("menuitem");
   menuitem.id = MENU_ID;
   menuitem.setAttribute("label", "Set Default");
@@ -49,6 +54,10 @@ export function registerContextMenu(win: Window) {
 
 export function unregisterContextMenu(win: Window) {
   const doc = win.document;
+  const separator = doc.getElementById(SEP_ID);
+  if (separator) {
+    separator.remove();
+  }
   const menuitem = doc.getElementById(MENU_ID);
   if (menuitem) {
     menuitem.remove();
@@ -73,6 +82,13 @@ function getZoteroPaneForWindow(
   }
 }
 
+function setMenuVisible(doc: Document, visible: boolean) {
+  const menuitem = doc.getElementById(MENU_ID);
+  const sep = doc.getElementById(SEP_ID);
+  if (menuitem) menuitem.hidden = !visible;
+  if (sep) sep.hidden = !visible;
+}
+
 function onPopupShowing(win: Window) {
   const doc = win.document;
   const menuitem = doc.getElementById(MENU_ID);
@@ -80,14 +96,14 @@ function onPopupShowing(win: Window) {
 
   const selectedItem = getSelectedAttachment(win);
   if (!selectedItem) {
-    menuitem.hidden = true;
+    setMenuVisible(doc, false);
     return;
   }
 
   // Check if parent has multiple PDF attachments
   const parent = Zotero.Items.get(selectedItem.parentItemID!);
   if (!parent) {
-    menuitem.hidden = true;
+    setMenuVisible(doc, false);
     return;
   }
 
@@ -98,11 +114,11 @@ function onPopupShowing(win: Window) {
   }).length;
 
   if (pdfCount < 2) {
-    menuitem.hidden = true;
+    setMenuVisible(doc, false);
     return;
   }
 
-  menuitem.hidden = false;
+  setMenuVisible(doc, true);
 
   // Toggle label based on current state
   if (isDefaultAttachment(selectedItem)) {
