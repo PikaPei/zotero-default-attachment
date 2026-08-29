@@ -1,6 +1,6 @@
 /**
  * Registers the right-click context menu item on attachments:
- * "Set as Default Attachment" / "Unset Default Attachment"
+ * "Set Default" / "Unset Default"
  *
  * Uses direct DOM manipulation for reliability across toolkit versions.
  * Handlers are bound per-window to avoid multi-window issues.
@@ -16,13 +16,11 @@ import { config } from "../../package.json";
 const MENU_ID = `${config.addonRef}-set-default-menuitem`;
 const SEP_ID = `${config.addonRef}-separator`;
 
-// Track per-window popup listeners so we can remove them on cleanup
 const popupListeners = new WeakMap<Window, () => void>();
 
 export function registerContextMenu(win: Window) {
   const doc = win.document;
 
-  // Idempotent: skip if already registered in this window
   if (doc.getElementById(MENU_ID)) {
     return;
   }
@@ -33,7 +31,6 @@ export function registerContextMenu(win: Window) {
     return;
   }
 
-  // Create a separator and the menu item
   const separator = doc.createXULElement("menuseparator");
   separator.id = SEP_ID;
   itemMenu.appendChild(separator);
@@ -44,7 +41,6 @@ export function registerContextMenu(win: Window) {
   menuitem.addEventListener("command", () => onMenuCommand(win));
   itemMenu.appendChild(menuitem);
 
-  // Update visibility/label when the context menu opens, bound to this window
   const listener = () => onPopupShowing(win);
   itemMenu.addEventListener("popupshowing", listener);
   popupListeners.set(win, listener);
@@ -75,7 +71,6 @@ function getZoteroPaneForWindow(
   win: Window,
 ): ReturnType<typeof Zotero.getActiveZoteroPane> | null {
   try {
-    // Access the ZoteroPane from the specific window
     return (win as any).ZoteroPane || Zotero.getActiveZoteroPane();
   } catch {
     return null;
@@ -85,8 +80,8 @@ function getZoteroPaneForWindow(
 function setMenuVisible(doc: Document, visible: boolean) {
   const menuitem = doc.getElementById(MENU_ID);
   const sep = doc.getElementById(SEP_ID);
-  if (menuitem) menuitem.hidden = !visible;
-  if (sep) sep.hidden = !visible;
+  if (menuitem) (menuitem as any).hidden = !visible;
+  if (sep) (sep as any).hidden = !visible;
 }
 
 function onPopupShowing(win: Window) {
@@ -95,32 +90,29 @@ function onPopupShowing(win: Window) {
   if (!menuitem) return;
 
   const selectedItem = getSelectedAttachment(win);
-  if (!selectedItem) {
+  if (!selectedItem || !selectedItem.parentItemID) {
     setMenuVisible(doc, false);
     return;
   }
 
-  // Check if parent has multiple PDF attachments
-  const parent = Zotero.Items.get(selectedItem.parentItemID!);
+  const parent = Zotero.Items.get(selectedItem.parentItemID);
   if (!parent) {
     setMenuVisible(doc, false);
     return;
   }
 
-  const attachmentIDs = parent.getAttachments();
-  const pdfCount = attachmentIDs.filter((id: number) => {
+  const fileCount = parent.getAttachments().filter((id: number) => {
     const att = Zotero.Items.get(id);
-    return att && att.attachmentContentType === "application/pdf";
+    return att && att.isFileAttachment();
   }).length;
 
-  if (pdfCount < 2) {
+  if (fileCount < 2) {
     setMenuVisible(doc, false);
     return;
   }
 
   setMenuVisible(doc, true);
 
-  // Toggle label based on current state
   if (isDefaultAttachment(selectedItem)) {
     menuitem.setAttribute("label", "Unset Default");
   } else {
@@ -128,23 +120,19 @@ function onPopupShowing(win: Window) {
   }
 }
 
-function onMenuCommand(win: Window) {
+async function onMenuCommand(win: Window) {
   const selectedItem = getSelectedAttachment(win);
-  if (!selectedItem) return;
+  if (!selectedItem || !selectedItem.parentItemID) return;
 
   if (isDefaultAttachment(selectedItem)) {
-    clearDefaultAttachment(selectedItem.parentItemID!);
+    await clearDefaultAttachment(selectedItem.parentItemID);
     showMessage("Default cleared");
   } else {
-    setDefaultAttachment(selectedItem);
+    await setDefaultAttachment(selectedItem);
     showMessage("Default updated");
   }
 }
 
-/**
- * Get the currently selected item if it's a PDF attachment with a parent.
- * Resolves from the specific window, not the global active pane.
- */
 function getSelectedAttachment(win: Window): Zotero.Item | null {
   const pane = getZoteroPaneForWindow(win);
   if (!pane) return null;
@@ -153,9 +141,8 @@ function getSelectedAttachment(win: Window): Zotero.Item | null {
   if (items.length !== 1) return null;
 
   const item = items[0];
-  if (!item.isAttachment()) return null;
-  if (!item.parentItemID) return null;
-  if (item.attachmentContentType !== "application/pdf") return null;
+  if (!item.isAttachment() || !item.parentItemID) return null;
+  if (!item.isFileAttachment()) return null;
 
   return item;
 }
