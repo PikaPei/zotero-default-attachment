@@ -1,0 +1,31 @@
+<vbox
+  id="zotero-prefpane-defaultattachment"
+  onload="var c = document.getElementById('zotero-prefpane-defaultattachment-useTag'); var i = document.getElementById('zotero-prefpane-defaultattachment-tagName'); if (c &amp;&amp; i) i.disabled = !c.checked;"
+>
+  <groupbox>
+    <label><html:h2>Default Attachment</html:h2></label>
+    <checkbox
+      id="zotero-prefpane-defaultattachment-useTag"
+      native="true"
+      preference="extensions.zotero.defaultattachment.useTag"
+      label="Store the default as a tag (syncs with the library)"
+      oncommand="document.getElementById('zotero-prefpane-defaultattachment-tagName').disabled = !this.checked;"
+    />
+    <hbox align="center">
+      <label
+        value="Tag name:"
+        control="zotero-prefpane-defaultattachment-tagName"
+      />
+      <html:input
+        id="zotero-prefpane-defaultattachment-tagName"
+        type="text"
+        flex="1"
+        preference="extensions.zotero.defaultattachment.tagName"
+      />
+    </hbox>
+    <html:p>
+      Turn this off to keep the tag list clean. The choice is then stored only
+      on this computer and is not synced.
+    </html:p>
+  </groupbox>
+</vbox>
