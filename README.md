@@ -17,3 +17,9 @@ To undo, right-click the same file and click **Unset Default**.
 By default the choice is stored as an automatic tag `default-attach` on the chosen file, so it syncs with the library. Double-click then opens that file instead of Zotero's usual pick (oldest PDF, then URL match). Linked URLs cannot be set as default.
 
 In **Settings → Default Attachment** you can change the tag name, or turn tags off to keep the tag list clean. With tags off, the choice is stored only on this computer.
+
+## Notes
+
+- **Defaults set with v1.0.0** keep working, but they are stored only on this computer. Set them again to store them as a tag and sync them.
+- **Renaming the tag or turning tags off** stops existing tag-based defaults from applying. The old tags stay in the library; switch back to bring them back.
+- Because the tag is automatic, **Delete Automatic Tags in This Library…** in the tag selector also removes every default.

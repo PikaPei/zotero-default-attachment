@@ -124,12 +124,18 @@ async function onMenuCommand(win: Window) {
   const selectedItem = getSelectedAttachment(win);
   if (!selectedItem || !selectedItem.parentItemID) return;
 
-  if (isDefaultAttachment(selectedItem)) {
-    await clearDefaultAttachment(selectedItem.parentItemID);
-    showMessage("Default cleared");
-  } else {
-    await setDefaultAttachment(selectedItem);
-    showMessage("Default updated");
+  try {
+    if (isDefaultAttachment(selectedItem)) {
+      await clearDefaultAttachment(selectedItem.parentItemID);
+      showMessage("Default cleared");
+    } else {
+      await setDefaultAttachment(selectedItem);
+      showMessage("Default updated");
+    }
+  } catch (e) {
+    // e.g. saving a tag in a read-only group library
+    ztoolkit.log("Failed to update default attachment", e);
+    showMessage("Could not update default: " + e, "fail");
   }
 }
 
@@ -147,11 +153,11 @@ function getSelectedAttachment(win: Window): Zotero.Item | null {
   return item;
 }
 
-function showMessage(msg: string) {
+function showMessage(msg: string, type = "default") {
   new ztoolkit.ProgressWindow(addon.data.config.addonName, {
     closeOnClick: true,
     closeTime: 3000,
   })
-    .createLine({ text: msg, type: "default" })
+    .createLine({ text: msg, type })
     .show();
 }

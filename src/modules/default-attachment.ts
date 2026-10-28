@@ -39,18 +39,26 @@ function saveMappings(mappings: Record<string, number>) {
   Zotero.Prefs.set(PREF_MAPPINGS, JSON.stringify(mappings), true);
 }
 
-function getPreferredAttachment(parent: Zotero.Item): Zotero.Item | null {
-  if (useTag()) {
-    const tag = markerTag();
-    for (const id of parent.getAttachments()) {
-      const att = Zotero.Items.get(id);
-      if (att && !att.deleted && att.hasTag(tag) && att.isFileAttachment()) {
-        return att;
-      }
-    }
-    return null;
-  }
+/**
+ * Tags can only be written where both items and files are editable; in
+ * read-only (group) libraries the choice falls back to local prefs.
+ */
+function canTag(item: Zotero.Item): boolean {
+  return useTag() && item.library.editable && item.library.filesEditable;
+}
 
+function getTaggedAttachment(parent: Zotero.Item): Zotero.Item | null {
+  const tag = markerTag();
+  for (const id of parent.getAttachments()) {
+    const att = Zotero.Items.get(id);
+    if (att && !att.deleted && att.hasTag(tag) && att.isFileAttachment()) {
+      return att;
+    }
+  }
+  return null;
+}
+
+function getMappedAttachment(parent: Zotero.Item): Zotero.Item | null {
   const id = getMappings()[String(parent.id)];
   if (!id) return null;
   const att = Zotero.Items.get(id);
@@ -60,6 +68,19 @@ function getPreferredAttachment(parent: Zotero.Item): Zotero.Item | null {
   return null;
 }
 
+/**
+ * In tag mode, local mappings are still read so defaults set with v1.0.0
+ * (stored only in prefs) keep working. Where tags can be written, a tag
+ * wins; in read-only libraries, the local choice wins over a synced tag.
+ */
+function getPreferredAttachment(parent: Zotero.Item): Zotero.Item | null {
+  if (!useTag()) return getMappedAttachment(parent);
+  if (canTag(parent)) {
+    return getTaggedAttachment(parent) ?? getMappedAttachment(parent);
+  }
+  return getMappedAttachment(parent) ?? getTaggedAttachment(parent);
+}
+
 export async function setDefaultAttachment(attachmentItem: Zotero.Item) {
   const parentID = attachmentItem.parentItemID;
   if (!parentID) return;
@@ -67,9 +88,10 @@ export async function setDefaultAttachment(attachmentItem: Zotero.Item) {
   const parent = Zotero.Items.get(parentID);
   if (!parent) return;
 
-  if (useTag()) {
+  if (canTag(parent)) {
     const tag = markerTag();
-    for (const id of parent.getAttachments()) {
+    // Include trashed siblings so a restored one doesn't bring back a 2nd tag
+    for (const id of parent.getAttachments(true)) {
       if (id === attachmentItem.id) continue;
       const sib = Zotero.Items.get(id);
       if (sib && sib.hasTag(tag)) {
@@ -81,6 +103,7 @@ export async function setDefaultAttachment(attachmentItem: Zotero.Item) {
       attachmentItem.addTag(tag, 1);
       await attachmentItem.saveTx({ skipDateModifiedUpdate: true });
     }
+    removeMapping(parentID);
     return;
   }
 
@@ -89,24 +112,37 @@ export async function setDefaultAttachment(attachmentItem: Zotero.Item) {
   saveMappings(mappings);
 }
 
-export async function clearDefaultAttachment(parentItemID: number) {
-  const parent = Zotero.Items.get(parentItemID);
-  if (useTag()) {
-    if (!parent) return;
-    const tag = markerTag();
-    for (const id of parent.getAttachments()) {
-      const att = Zotero.Items.get(id);
-      if (att && att.hasTag(tag)) {
-        att.removeTag(tag);
-        await att.saveTx({ skipDateModifiedUpdate: true });
-      }
-    }
-    return;
-  }
-
+function removeMapping(parentItemID: number): boolean {
   const mappings = getMappings();
+  if (!(String(parentItemID) in mappings)) return false;
   delete mappings[String(parentItemID)];
   saveMappings(mappings);
+  return true;
+}
+
+export async function clearDefaultAttachment(parentItemID: number) {
+  const hadMapping = removeMapping(parentItemID);
+
+  const parent = Zotero.Items.get(parentItemID);
+  if (!useTag() || !parent) return;
+
+  const tag = markerTag();
+  const tagged = parent
+    .getAttachments(true)
+    .map((id) => Zotero.Items.get(id))
+    .filter((att) => att && att.hasTag(tag));
+  if (!tagged.length) return;
+
+  if (!canTag(parent)) {
+    // Unsetting a local choice here falls back to the synced tag
+    if (hadMapping) return;
+    throw new Error("This library is read-only, so its tag can't be removed");
+  }
+
+  for (const att of tagged) {
+    att.removeTag(tag);
+    await att.saveTx({ skipDateModifiedUpdate: true });
+  }
 }
 
 export function isDefaultAttachment(attachmentItem: Zotero.Item): boolean {
