@@ -14,6 +14,13 @@ async function onStartup() {
 
   patchGetBestAttachment();
 
+  Zotero.PreferencePanes.register({
+    pluginID: addon.data.config.addonID,
+    src: rootURI + "content/preferences.xhtml",
+    label: "Default Attachment",
+    image: rootURI + "content/icons/set_default_48.png",
+  });
+
   await Promise.all(
     Zotero.getMainWindows().map((win) => onMainWindowLoad(win)),
   );
@@ -32,7 +39,6 @@ async function onMainWindowUnload(win: Window): Promise<void> {
 }
 
 function onShutdown(): void {
-  // Clean up context menus from all open windows
   for (const win of Zotero.getMainWindows()) {
     unregisterContextMenu(win);
   }
